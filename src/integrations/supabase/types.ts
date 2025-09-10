@@ -14,7 +14,226 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admins: {
+        Row: {
+          contact: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      client_admins: {
+        Row: {
+          admin_id: string
+          client_id: string
+          id: string
+        }
+        Insert: {
+          admin_id: string
+          client_id: string
+          id?: string
+        }
+        Update: {
+          admin_id?: string
+          client_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_admins_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "admins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_admins_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          amc_end_date: string | null
+          amc_start_date: string | null
+          client_name: string
+          contact: string | null
+          created_at: string
+          email: string
+          hours_consumed: number | null
+          id: string
+          logo_url: string | null
+          project_slug: string
+          project_url: string | null
+          total_hours: number | null
+          updated_at: string
+        }
+        Insert: {
+          amc_end_date?: string | null
+          amc_start_date?: string | null
+          client_name: string
+          contact?: string | null
+          created_at?: string
+          email: string
+          hours_consumed?: number | null
+          id?: string
+          logo_url?: string | null
+          project_slug: string
+          project_url?: string | null
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amc_end_date?: string | null
+          amc_start_date?: string | null
+          client_name?: string
+          contact?: string | null
+          created_at?: string
+          email?: string
+          hours_consumed?: number | null
+          id?: string
+          logo_url?: string | null
+          project_slug?: string
+          project_url?: string | null
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hour_requests: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          requested_hours: number
+          status: Database["public"]["Enums"]["request_status"] | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          requested_hours: number
+          status?: Database["public"]["Enums"]["request_status"] | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          requested_hours?: number
+          status?: Database["public"]["Enums"]["request_status"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hour_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          contact: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      work_logs: {
+        Row: {
+          client_id: string
+          created_at: string
+          date: string
+          description: string
+          end_date: string | null
+          hours_consumed: number
+          id: string
+          start_date: string | null
+          status: Database["public"]["Enums"]["work_status"] | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          date: string
+          description: string
+          end_date?: string | null
+          hours_consumed: number
+          id?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["work_status"] | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          date?: string
+          description?: string
+          end_date?: string | null
+          hours_consumed?: number
+          id?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["work_status"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +242,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      request_status: "pending" | "approved" | "rejected"
+      user_role: "superadmin" | "admin" | "client"
+      work_status: "pending" | "in_progress" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +371,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      request_status: ["pending", "approved", "rejected"],
+      user_role: ["superadmin", "admin", "client"],
+      work_status: ["pending", "in_progress", "completed"],
+    },
   },
 } as const
