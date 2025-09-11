@@ -78,45 +78,66 @@ export type Database = {
         Row: {
           amc_end_date: string | null
           amc_start_date: string | null
-          client_name: string
+          client_name: string | null
+          client_poc_name: string | null
           contact: string | null
+          cost_for_year: number | null
           created_at: string
-          email: string
+          domain: string | null
+          email: string | null
           hours_consumed: number | null
           id: string
           logo_url: string | null
+          payment_term: Database["public"]["Enums"]["payment_term"] | null
+          poc_email: string | null
+          project_name: string | null
           project_slug: string
           project_url: string | null
+          ting_poc: string[] | null
           total_hours: number | null
           updated_at: string
         }
         Insert: {
           amc_end_date?: string | null
           amc_start_date?: string | null
-          client_name: string
+          client_name?: string | null
+          client_poc_name?: string | null
           contact?: string | null
+          cost_for_year?: number | null
           created_at?: string
-          email: string
+          domain?: string | null
+          email?: string | null
           hours_consumed?: number | null
           id?: string
           logo_url?: string | null
+          payment_term?: Database["public"]["Enums"]["payment_term"] | null
+          poc_email?: string | null
+          project_name?: string | null
           project_slug: string
           project_url?: string | null
+          ting_poc?: string[] | null
           total_hours?: number | null
           updated_at?: string
         }
         Update: {
           amc_end_date?: string | null
           amc_start_date?: string | null
-          client_name?: string
+          client_name?: string | null
+          client_poc_name?: string | null
           contact?: string | null
+          cost_for_year?: number | null
           created_at?: string
-          email?: string
+          domain?: string | null
+          email?: string | null
           hours_consumed?: number | null
           id?: string
           logo_url?: string | null
+          payment_term?: Database["public"]["Enums"]["payment_term"] | null
+          poc_email?: string | null
+          project_name?: string | null
           project_slug?: string
           project_url?: string | null
+          ting_poc?: string[] | null
           total_hours?: number | null
           updated_at?: string
         }
@@ -242,6 +263,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      payment_term: "Monthly" | "Quarterly" | "Half-Yearly" | "Yearly"
       request_status: "pending" | "approved" | "rejected"
       user_role: "superadmin" | "admin" | "client"
       work_status: "pending" | "in_progress" | "completed"
@@ -372,6 +394,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      payment_term: ["Monthly", "Quarterly", "Half-Yearly", "Yearly"],
       request_status: ["pending", "approved", "rejected"],
       user_role: ["superadmin", "admin", "client"],
       work_status: ["pending", "in_progress", "completed"],
