@@ -126,7 +126,7 @@ export const ClientManagement = () => {
       } else {
         const { error } = await supabase
           .from('clients')
-          .insert([formData]);
+          .insert([{ ...formData, project_slug: '' }]); // Trigger will generate actual slug from domain
 
         if (error) throw error;
         
