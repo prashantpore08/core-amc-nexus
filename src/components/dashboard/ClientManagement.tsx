@@ -17,12 +17,12 @@ interface Client {
   project_name: string | null;
   client_poc_name: string | null;
   poc_email: string | null;
+  client_poc_contact_number: string | null;
   cost_for_year: number | null;
   payment_term: string | null;
-  ting_poc: string[] | null;
+  ting_poc_primary: string | null;
+  ting_poc_secondary: string | null;
   project_slug: string;
-  total_hours: number;
-  hours_consumed: number;
   amc_start_date: string | null;
   amc_end_date: string | null;
 }
@@ -32,10 +32,11 @@ interface ClientFormData {
   project_name: string;
   client_poc_name: string;
   poc_email: string;
+  client_poc_contact_number: string;
   cost_for_year: number;
   payment_term: 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly';
-  ting_poc: string[];
-  total_hours: number;
+  ting_poc_primary: string;
+  ting_poc_secondary: string;
   amc_start_date: string;
   amc_end_date: string;
 }
@@ -58,10 +59,11 @@ export const ClientManagement = () => {
     project_name: '',
     client_poc_name: '',
     poc_email: '',
+    client_poc_contact_number: '',
     cost_for_year: 0,
     payment_term: 'Monthly',
-    ting_poc: [],
-    total_hours: 0,
+    ting_poc_primary: '',
+    ting_poc_secondary: '',
     amc_start_date: '',
     amc_end_date: '',
   });
@@ -156,10 +158,11 @@ export const ClientManagement = () => {
       project_name: client.project_name || '',
       client_poc_name: client.client_poc_name || '',
       poc_email: client.poc_email || '',
+      client_poc_contact_number: client.client_poc_contact_number || '',
       cost_for_year: client.cost_for_year || 0,
       payment_term: (client.payment_term as 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly') || 'Monthly',
-      ting_poc: client.ting_poc || [],
-      total_hours: client.total_hours,
+      ting_poc_primary: client.ting_poc_primary || '',
+      ting_poc_secondary: client.ting_poc_secondary || '',
       amc_start_date: client.amc_start_date || '',
       amc_end_date: client.amc_end_date || '',
     });
@@ -200,29 +203,25 @@ export const ClientManagement = () => {
       project_name: '',
       client_poc_name: '',
       poc_email: '',
+      client_poc_contact_number: '',
       cost_for_year: 0,
       payment_term: 'Monthly',
-      ting_poc: [],
-      total_hours: 0,
+      ting_poc_primary: '',
+      ting_poc_secondary: '',
       amc_start_date: '',
       amc_end_date: '',
     });
   };
 
-  const handleTingPocChange = (adminId: string, checked: boolean) => {
-    if (checked) {
-      setFormData({...formData, ting_poc: [...formData.ting_poc, adminId]});
-    } else {
-      setFormData({...formData, ting_poc: formData.ting_poc.filter(id => id !== adminId)});
-    }
-  };
-
-  const getTingPocNames = (tingPocIds: string[] | null) => {
-    if (!tingPocIds || tingPocIds.length === 0) return 'None';
-    return tingPocIds
-      .map(id => admins.find(admin => admin.id === id)?.name)
-      .filter(Boolean)
-      .join(', ');
+  const getTingPocNames = (primaryId: string | null, secondaryId: string | null) => {
+    const primary = primaryId ? admins.find(admin => admin.id === primaryId)?.name : null;
+    const secondary = secondaryId ? admins.find(admin => admin.id === secondaryId)?.name : null;
+    
+    const pocs = [];
+    if (primary) pocs.push(`Primary: ${primary}`);
+    if (secondary) pocs.push(`Secondary: ${secondary}`);
+    
+    return pocs.length > 0 ? pocs.join(', ') : 'None';
   };
 
   if (loading) {
@@ -287,6 +286,14 @@ export const ClientManagement = () => {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="client_poc_contact_number">Client POC Contact Number</Label>
+                  <Input
+                    id="client_poc_contact_number"
+                    value={formData.client_poc_contact_number}
+                    onChange={(e) => setFormData({...formData, client_poc_contact_number: e.target.value})}
+                  />
+                </div>
+                <div>
                   <Label htmlFor="cost_for_year">Cost for Year</Label>
                   <Input
                     id="cost_for_year"
@@ -315,13 +322,40 @@ export const ClientManagement = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="total_hours">Total Hours</Label>
-                  <Input
-                    id="total_hours"
-                    type="number"
-                    value={formData.total_hours}
-                    onChange={(e) => setFormData({...formData, total_hours: parseInt(e.target.value) || 0})}
-                  />
+                  <Label htmlFor="ting_poc_primary">Ting POC Primary</Label>
+                  <Select
+                    value={formData.ting_poc_primary}
+                    onValueChange={(value) => setFormData({...formData, ting_poc_primary: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select primary POC" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {admins.map((admin) => (
+                        <SelectItem key={admin.id} value={admin.id}>
+                          {admin.name} ({admin.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="ting_poc_secondary">Ting POC Secondary</Label>
+                  <Select
+                    value={formData.ting_poc_secondary}
+                    onValueChange={(value) => setFormData({...formData, ting_poc_secondary: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select secondary POC" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {admins.map((admin) => (
+                        <SelectItem key={admin.id} value={admin.id}>
+                          {admin.name} ({admin.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="amc_start_date">AMC Start Date</Label>
@@ -340,24 +374,6 @@ export const ClientManagement = () => {
                     value={formData.amc_end_date}
                     onChange={(e) => setFormData({...formData, amc_end_date: e.target.value})}
                   />
-                </div>
-                <div className="col-span-2">
-                  <Label>Ting POC (Multi-select)</Label>
-                  <div className="border rounded p-3 space-y-2 max-h-32 overflow-y-auto">
-                    {admins.map((admin) => (
-                      <div key={admin.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`admin-${admin.id}`}
-                          checked={formData.ting_poc.includes(admin.id)}
-                          onChange={(e) => handleTingPocChange(admin.id, e.target.checked)}
-                        />
-                        <Label htmlFor={`admin-${admin.id}`} className="text-sm">
-                          {admin.name} ({admin.email})
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -382,11 +398,9 @@ export const ClientManagement = () => {
                 <TableHead>Domain</TableHead>
                 <TableHead>Client POC</TableHead>
                 <TableHead>POC Email</TableHead>
+                <TableHead>Contact Number</TableHead>
                 <TableHead>Cost/Year</TableHead>
                 <TableHead>Payment Term</TableHead>
-                <TableHead>Total Hours</TableHead>
-                <TableHead>Consumed</TableHead>
-                <TableHead>Remaining</TableHead>
                 <TableHead>Ting POC</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -402,13 +416,11 @@ export const ClientManagement = () => {
                   <TableCell>{client.domain}</TableCell>
                   <TableCell>{client.client_poc_name}</TableCell>
                   <TableCell>{client.poc_email}</TableCell>
+                  <TableCell>{client.client_poc_contact_number}</TableCell>
                   <TableCell>${client.cost_for_year?.toLocaleString()}</TableCell>
-                  <TableCell>{client.payment_term}</TableCell>
-                  <TableCell>{client.total_hours}h</TableCell>
-                  <TableCell>{client.hours_consumed}h</TableCell>
-                  <TableCell>{client.total_hours - client.hours_consumed}h</TableCell>
+                  <TableCell className="capitalize">{client.payment_term?.replace('_', ' ')}</TableCell>
                   <TableCell className="max-w-32 truncate">
-                    {getTingPocNames(client.ting_poc)}
+                    {getTingPocNames(client.ting_poc_primary, client.ting_poc_secondary)}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>

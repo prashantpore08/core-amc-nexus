@@ -14,7 +14,7 @@ interface Admin {
   id: string;
   name: string;
   email: string;
-  contact: string | null;
+  contact_number: string | null;
   client_count?: number;
   clients?: Array<{ client_name: string; }>;
 }
@@ -22,7 +22,7 @@ interface Admin {
 interface AdminFormData {
   name: string;
   email: string;
-  contact: string;
+  contact_number: string;
 }
 
 export const AdminManagement = () => {
@@ -33,7 +33,7 @@ export const AdminManagement = () => {
   const [formData, setFormData] = useState<AdminFormData>({
     name: '',
     email: '',
-    contact: '',
+    contact_number: '',
   });
   const { toast } = useToast();
 
@@ -123,7 +123,7 @@ export const AdminManagement = () => {
     setFormData({
       name: admin.name,
       email: admin.email,
-      contact: admin.contact || '',
+      contact_number: admin.contact_number || '',
     });
     setDialogOpen(true);
   };
@@ -160,7 +160,7 @@ export const AdminManagement = () => {
     setFormData({
       name: '',
       email: '',
-      contact: '',
+      contact_number: '',
     });
   };
 
@@ -209,11 +209,11 @@ export const AdminManagement = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="contact">Contact</Label>
+                <Label htmlFor="contact_number">Contact Number</Label>
                 <Input
-                  id="contact"
-                  value={formData.contact}
-                  onChange={(e) => setFormData({...formData, contact: e.target.value})}
+                  id="contact_number"
+                  value={formData.contact_number}
+                  onChange={(e) => setFormData({...formData, contact_number: e.target.value})}
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -244,7 +244,7 @@ export const AdminManagement = () => {
               <TableRow key={admin.id}>
                 <TableCell className="font-medium">{admin.name}</TableCell>
                 <TableCell>{admin.email}</TableCell>
-                <TableCell>{admin.contact || 'N/A'}</TableCell>
+                <TableCell>{admin.contact_number || 'N/A'}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     <Badge variant="secondary">

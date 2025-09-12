@@ -5,53 +5,63 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Plus, Pencil, Trash2, Download, Clock, TrendingUp, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, DollarSign, Clock, Calendar, FileDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface WorkLog {
   id: string;
+  client_id: string;
   date: string;
-  description: string;
+  work_description: string;
   hours_consumed: number;
   start_date: string | null;
   end_date: string | null;
   status: string;
 }
 
-interface Client {
-  id: string;
-  project_name: string | null;
-  hours_consumed: number;
-  total_hours: number;
-  amc_start_date: string | null;
-  amc_end_date: string | null;
-}
-
 interface WorkLogFormData {
   date: string;
-  description: string;
+  work_description: string;
   hours_consumed: number;
   start_date: string;
   end_date: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+interface ClientStats {
+  hoursConsumed: number;
+  hoursRemaining: number;
+  amcStartDate: string | null;
+  amcEndDate: string | null;
+  paymentDone: number;
+  remainingPayment: number;
 }
 
 export const WorkLogPage = () => {
-  const { projectSlug } = useParams<{ projectSlug: string }>();
+  const { projectSlug } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [client, setClient] = useState<Client | null>(null);
+  const [client, setClient] = useState<any>(null);
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
+  const [clientStats, setClientStats] = useState<ClientStats>({
+    hoursConsumed: 0,
+    hoursRemaining: 0,
+    amcStartDate: null,
+    amcEndDate: null,
+    paymentDone: 0,
+    remainingPayment: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingLog, setEditingLog] = useState<WorkLog | null>(null);
+  const [editingWorkLog, setEditingWorkLog] = useState<WorkLog | null>(null);
   const [formData, setFormData] = useState<WorkLogFormData>({
-    date: new Date().toISOString().split('T')[0],
-    description: '',
+    date: '',
+    work_description: '',
     hours_consumed: 0,
     start_date: '',
     end_date: '',
@@ -61,15 +71,21 @@ export const WorkLogPage = () => {
   useEffect(() => {
     if (projectSlug) {
       fetchClient();
-      fetchWorkLogs();
     }
   }, [projectSlug]);
+
+  useEffect(() => {
+    if (client?.id) {
+      fetchWorkLogs();
+      fetchClientStats();
+    }
+  }, [client?.id]);
 
   const fetchClient = async () => {
     try {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, project_name, hours_consumed, total_hours, amc_start_date, amc_end_date')
+        .select('*')
         .eq('project_slug', projectSlug)
         .single();
 
@@ -82,50 +98,95 @@ export const WorkLogPage = () => {
         description: "Failed to fetch client details",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchWorkLogs = async () => {
+    if (!client?.id) return;
+
     try {
-      const { data: clientData, error: clientError } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('project_slug', projectSlug)
-        .single();
-
-      if (clientError) throw clientError;
-
       const { data, error } = await supabase
         .from('work_logs')
         .select('*')
-        .eq('client_id', clientData.id)
-        .order('date', { ascending: false });
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setWorkLogs(data || []);
     } catch (error) {
       console.error('Error fetching work logs:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch work logs",
-        variant: "destructive",
+    }
+  };
+
+  const fetchClientStats = async () => {
+    if (!client?.id) return;
+
+    try {
+      // Fetch work logs to calculate consumed hours
+      const { data: workLogsData, error: workLogsError } = await supabase
+        .from('work_logs')
+        .select('hours_consumed')
+        .eq('client_id', client.id);
+
+      if (workLogsError) throw workLogsError;
+
+      // Fetch payments to calculate payment stats
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('amount_paid, amount_remaining')
+        .eq('client_id', client.id);
+
+      if (paymentsError && paymentsError.code !== 'PGRST116') throw paymentsError;
+
+      const hoursConsumed = workLogsData?.reduce((sum, log) => sum + (Number(log.hours_consumed) || 0), 0) || 0;
+      
+      // Calculate allocated hours based on payment term
+      const yearlyHours = 2000;
+      let allocatedHours = yearlyHours;
+      
+      switch (client.payment_term) {
+        case 'monthly':
+          allocatedHours = yearlyHours / 12;
+          break;
+        case 'quarterly':
+          allocatedHours = yearlyHours / 4;
+          break;
+        case 'half_yearly':
+          allocatedHours = yearlyHours / 2;
+          break;
+        case 'yearly':
+          allocatedHours = yearlyHours;
+          break;
+      }
+
+      const hoursRemaining = allocatedHours - hoursConsumed;
+      const paymentDone = paymentsData?.reduce((sum, payment) => sum + (Number(payment.amount_paid) || 0), 0) || 0;
+      const remainingPayment = (client.cost_for_year || 0) - paymentDone;
+
+      setClientStats({
+        hoursConsumed,
+        hoursRemaining,
+        amcStartDate: client.amc_start_date,
+        amcEndDate: client.amc_end_date,
+        paymentDone,
+        remainingPayment,
       });
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching client stats:', error);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!client) return;
-
     try {
-      if (editingLog) {
+      if (editingWorkLog) {
         const { error } = await supabase
           .from('work_logs')
           .update(formData)
-          .eq('id', editingLog.id);
+          .eq('id', editingWorkLog.id);
 
         if (error) throw error;
         
@@ -136,10 +197,7 @@ export const WorkLogPage = () => {
       } else {
         const { error } = await supabase
           .from('work_logs')
-          .insert([{
-            ...formData,
-            client_id: client.id,
-          }]);
+          .insert([{ ...formData, client_id: client.id }]);
 
         if (error) throw error;
         
@@ -152,7 +210,7 @@ export const WorkLogPage = () => {
       setDialogOpen(false);
       resetForm();
       fetchWorkLogs();
-      fetchClient(); // Refresh client data for updated hours
+      fetchClientStats();
     } catch (error) {
       console.error('Error saving work log:', error);
       toast({
@@ -164,14 +222,14 @@ export const WorkLogPage = () => {
   };
 
   const handleEdit = (workLog: WorkLog) => {
-    setEditingLog(workLog);
+    setEditingWorkLog(workLog);
     setFormData({
       date: workLog.date,
-      description: workLog.description,
-      hours_consumed: workLog.hours_consumed,
+      work_description: workLog.work_description,
+      hours_consumed: Number(workLog.hours_consumed),
       start_date: workLog.start_date || '',
       end_date: workLog.end_date || '',
-      status: workLog.status as 'pending' | 'in_progress' | 'completed',
+      status: workLog.status as 'pending' | 'approved' | 'rejected',
     });
     setDialogOpen(true);
   };
@@ -193,7 +251,7 @@ export const WorkLogPage = () => {
       });
       
       fetchWorkLogs();
-      fetchClient(); // Refresh client data for updated hours
+      fetchClientStats();
     } catch (error) {
       console.error('Error deleting work log:', error);
       toast({
@@ -205,33 +263,24 @@ export const WorkLogPage = () => {
   };
 
   const resetForm = () => {
-    setEditingLog(null);
+    setEditingWorkLog(null);
     setFormData({
-      date: new Date().toISOString().split('T')[0],
-      description: '',
+      date: '',
+      work_description: '',
       hours_consumed: 0,
       start_date: '',
       end_date: '',
-      status: 'pending' as const,
+      status: 'pending',
     });
   };
 
-  const exportCSV = () => {
-    if (workLogs.length === 0) {
-      toast({
-        title: "No Data",
-        description: "No work logs to export",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const headers = ['Date', 'Description', 'Hours Consumed', 'Start Date', 'End Date', 'Status'];
+  const exportToCSV = () => {
+    const headers = ['Date', 'Work Description', 'Hours Consumed', 'Start Date', 'End Date', 'Status'];
     const csvContent = [
       headers.join(','),
       ...workLogs.map(log => [
         log.date,
-        `"${log.description}"`,
+        `"${log.work_description}"`,
         log.hours_consumed,
         log.start_date || '',
         log.end_date || '',
@@ -243,7 +292,7 @@ export const WorkLogPage = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${projectSlug}-work-logs.csv`;
+    a.download = `${client?.project_name || 'client'}-work-logs.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -256,226 +305,274 @@ export const WorkLogPage = () => {
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <h1 className="text-2xl font-bold mb-4">Client Not Found</h1>
-        <Button onClick={() => navigate('/')}>
+        <Button onClick={() => navigate('/dashboard/clients')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
+          Back to Clients
         </Button>
       </div>
     );
   }
 
-  const hoursRemaining = client.total_hours - client.hours_consumed;
-
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="container mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" onClick={() => navigate('/')}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Client Management
-            </Button>
-            <h1 className="text-3xl font-bold">{client.project_name} - Work Logs</h1>
-          </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={exportCSV}>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={() => resetForm()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Work Log
-                </Button>
-              </DialogTrigger>
-            </Dialog>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard/clients')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Clients
+          </Button>
+          <h1 className="text-3xl font-bold text-foreground">
+            Work Log - {client?.project_name}
+          </h1>
         </div>
+        <Button onClick={exportToCSV} variant="outline">
+          <FileDown className="mr-2 h-4 w-4" />
+          Export CSV
+        </Button>
+      </div>
 
-        {/* Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Hours Consumed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">{client.hours_consumed}h</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Hours Remaining</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-600">{hoursRemaining}h</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">AMC Start Date</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">
-                {client.amc_start_date ? new Date(client.amc_start_date).toLocaleDateString() : 'Not set'}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">AMC End Date</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">
-                {client.amc_end_date ? new Date(client.amc_end_date).toLocaleDateString() : 'Not set'}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Work Logs Table */}
+      {/* Client Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Work Logs</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hours Consumed</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Work Description</TableHead>
-                  <TableHead>Hours Consumed</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead>End Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>{new Date(log.date).toLocaleDateString()}</TableCell>
-                    <TableCell className="max-w-xs truncate">{log.description}</TableCell>
-                    <TableCell>{log.hours_consumed}h</TableCell>
-                    <TableCell>
-                      {log.start_date ? new Date(log.start_date).toLocaleDateString() : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {log.end_date ? new Date(log.end_date).toLocaleDateString() : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        log.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
-                        log.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {log.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(log)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(log.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {workLogs.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                No work logs found. Add your first work log to get started.
-              </div>
-            )}
+            <div className="text-2xl font-bold">{Math.round(clientStats.hoursConsumed)}h</div>
+            <p className="text-xs text-muted-foreground">
+              From work logs
+            </p>
           </CardContent>
         </Card>
-
-        {/* Add/Edit Work Log Dialog */}
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingLog ? 'Edit Work Log' : 'Add New Work Log'}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="date">Date *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="hours_consumed">Hours Consumed *</Label>
-                <Input
-                  id="hours_consumed"
-                  type="number"
-                  step="0.5"
-                  value={formData.hours_consumed}
-                  onChange={(e) => setFormData({...formData, hours_consumed: parseFloat(e.target.value) || 0})}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="start_date">Start Date</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-                />
-              </div>
-              <div>
-                <Label htmlFor="end_date">End Date</Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData({...formData, end_date: e.target.value})}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="description">Work Description *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  required
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingLog ? 'Update' : 'Create'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hours Remaining</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{Math.round(clientStats.hoursRemaining)}h</div>
+            <p className="text-xs text-muted-foreground">
+              Available hours
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Payment Done</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${clientStats.paymentDone.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Total payments received
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Remaining Payment</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${clientStats.remainingPayment.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Outstanding amount
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {clientStats.amcStartDate && clientStats.amcEndDate && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              AMC Period
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4">
+              <div>
+                <p className="text-sm font-medium">Start Date</p>
+                <p className="text-lg">{new Date(clientStats.amcStartDate).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">End Date</p>
+                <p className="text-lg">{new Date(clientStats.amcEndDate).toLocaleDateString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-foreground">Work Logs</h2>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => resetForm()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Work Log
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editingWorkLog ? 'Edit Work Log' : 'Add New Work Log'}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="date">Date *</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="hours_consumed">Hours Consumed *</Label>
+                  <Input
+                    id="hours_consumed"
+                    type="number"
+                    step="0.5"
+                    value={formData.hours_consumed}
+                    onChange={(e) => setFormData({...formData, hours_consumed: parseFloat(e.target.value) || 0})}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="start_date">Start Date</Label>
+                  <Input
+                    id="start_date"
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="end_date">End Date</Label>
+                  <Input
+                    id="end_date"
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value: 'pending' | 'approved' | 'rejected') => 
+                      setFormData({...formData, status: value})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="work_description">Work Description *</Label>
+                  <Textarea
+                    id="work_description"
+                    value={formData.work_description}
+                    onChange={(e) => setFormData({...formData, work_description: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingWorkLog ? 'Update' : 'Create'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Work Description</TableHead>
+                <TableHead>Hours Consumed</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>End Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {workLogs.map((workLog) => (
+                <TableRow key={workLog.id}>
+                  <TableCell>{new Date(workLog.date).toLocaleDateString()}</TableCell>
+                  <TableCell className="max-w-xs truncate">{workLog.work_description}</TableCell>
+                  <TableCell>{workLog.hours_consumed}h</TableCell>
+                  <TableCell>
+                    {workLog.start_date ? new Date(workLog.start_date).toLocaleDateString() : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {workLog.end_date ? new Date(workLog.end_date).toLocaleDateString() : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`capitalize px-2 py-1 rounded text-xs ${
+                      workLog.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      workLog.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {workLog.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(workLog)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(workLog.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {workLogs.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              No work logs found. Add your first work log to get started.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

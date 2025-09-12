@@ -16,7 +16,7 @@ export type Database = {
     Tables: {
       admins: {
         Row: {
-          contact: string | null
+          contact_number: string | null
           created_at: string
           email: string
           id: string
@@ -24,7 +24,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          contact?: string | null
+          contact_number?: string | null
           created_at?: string
           email: string
           id?: string
@@ -32,7 +32,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          contact?: string | null
+          contact_number?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -79,13 +79,13 @@ export type Database = {
           amc_end_date: string | null
           amc_start_date: string | null
           client_name: string | null
+          client_poc_contact_number: string | null
           client_poc_name: string | null
           contact: string | null
           cost_for_year: number | null
           created_at: string
           domain: string | null
           email: string | null
-          hours_consumed: number | null
           id: string
           logo_url: string | null
           payment_term: Database["public"]["Enums"]["payment_term"] | null
@@ -93,21 +93,21 @@ export type Database = {
           project_name: string | null
           project_slug: string
           project_url: string | null
-          ting_poc: string[] | null
-          total_hours: number | null
+          ting_poc_primary: string | null
+          ting_poc_secondary: string | null
           updated_at: string
         }
         Insert: {
           amc_end_date?: string | null
           amc_start_date?: string | null
           client_name?: string | null
+          client_poc_contact_number?: string | null
           client_poc_name?: string | null
           contact?: string | null
           cost_for_year?: number | null
           created_at?: string
           domain?: string | null
           email?: string | null
-          hours_consumed?: number | null
           id?: string
           logo_url?: string | null
           payment_term?: Database["public"]["Enums"]["payment_term"] | null
@@ -115,21 +115,21 @@ export type Database = {
           project_name?: string | null
           project_slug: string
           project_url?: string | null
-          ting_poc?: string[] | null
-          total_hours?: number | null
+          ting_poc_primary?: string | null
+          ting_poc_secondary?: string | null
           updated_at?: string
         }
         Update: {
           amc_end_date?: string | null
           amc_start_date?: string | null
           client_name?: string | null
+          client_poc_contact_number?: string | null
           client_poc_name?: string | null
           contact?: string | null
           cost_for_year?: number | null
           created_at?: string
           domain?: string | null
           email?: string | null
-          hours_consumed?: number | null
           id?: string
           logo_url?: string | null
           payment_term?: Database["public"]["Enums"]["payment_term"] | null
@@ -137,11 +137,26 @@ export type Database = {
           project_name?: string | null
           project_slug?: string
           project_url?: string | null
-          ting_poc?: string[] | null
-          total_hours?: number | null
+          ting_poc_primary?: string | null
+          ting_poc_secondary?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_ting_poc_primary_fkey"
+            columns: ["ting_poc_primary"]
+            isOneToOne: false
+            referencedRelation: "admins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_ting_poc_secondary_fkey"
+            columns: ["ting_poc_secondary"]
+            isOneToOne: false
+            referencedRelation: "admins"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hour_requests: {
         Row: {
@@ -171,6 +186,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "hour_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount_paid: number
+          amount_remaining: number
+          client_id: string
+          created_at: string
+          id: string
+          payment_date: string
+          payment_term: Database["public"]["Enums"]["payment_term"]
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number
+          amount_remaining?: number
+          client_id: string
+          created_at?: string
+          id?: string
+          payment_date: string
+          payment_term: Database["public"]["Enums"]["payment_term"]
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number
+          amount_remaining?: number
+          client_id?: string
+          created_at?: string
+          id?: string
+          payment_date?: string
+          payment_term?: Database["public"]["Enums"]["payment_term"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -213,37 +269,37 @@ export type Database = {
           client_id: string
           created_at: string
           date: string
-          description: string
           end_date: string | null
           hours_consumed: number
           id: string
           start_date: string | null
           status: Database["public"]["Enums"]["work_status"] | null
           updated_at: string
+          work_description: string
         }
         Insert: {
           client_id: string
           created_at?: string
           date: string
-          description: string
           end_date?: string | null
           hours_consumed: number
           id?: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["work_status"] | null
           updated_at?: string
+          work_description: string
         }
         Update: {
           client_id?: string
           created_at?: string
           date?: string
-          description?: string
           end_date?: string | null
           hours_consumed?: number
           id?: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["work_status"] | null
           updated_at?: string
+          work_description?: string
         }
         Relationships: [
           {
