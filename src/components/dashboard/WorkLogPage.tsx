@@ -274,6 +274,15 @@ export const WorkLogPage = () => {
     });
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'in_progress': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ['Date', 'Work Description', 'Hours Consumed', 'Start Date', 'End Date', 'Status'];
     const csvContent = [
@@ -334,60 +343,64 @@ export const WorkLogPage = () => {
         </Button>
       </div>
 
-      {/* Client Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hours Consumed</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Math.round(clientStats.hoursConsumed)}h</div>
-            <p className="text-xs text-muted-foreground">
-              From work logs
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hours Remaining</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{Math.round(clientStats.hoursRemaining)}h</div>
-            <p className="text-xs text-muted-foreground">
-              Available hours
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Payment Done</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${clientStats.paymentDone.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Total payments received
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Remaining Payment</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${clientStats.remainingPayment.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Outstanding amount
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Hours Consumed</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{clientStats.hoursConsumed.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">
+                {client?.cost_for_year ? `${((clientStats.hoursConsumed / (client.cost_for_year / 100)) * 100).toFixed(1)}% of total` : 'No limit set'}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Hours Remaining</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{clientStats.hoursRemaining.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">
+                {client?.cost_for_year ? `${((clientStats.hoursRemaining / (client.cost_for_year / 100)) * 100).toFixed(1)}% remaining` : 'No limit set'}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Payment Done</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${clientStats.paymentDone.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {client?.cost_for_year ? `${((clientStats.paymentDone / client.cost_for_year) * 100).toFixed(1)}% of total` : 'No cost set'}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">AMC Period</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm font-bold">
+                {client?.amc_start_date && client?.amc_end_date 
+                  ? `${new Date(client.amc_start_date).toLocaleDateString()} - ${new Date(client.amc_end_date).toLocaleDateString()}`
+                  : 'Not set'
+                }
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Remaining: ${clientStats.remainingPayment.toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
       {clientStats.amcStartDate && clientStats.amcEndDate && (
         <Card className="mb-6">

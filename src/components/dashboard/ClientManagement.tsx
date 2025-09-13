@@ -3,28 +3,38 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash2, Building2, Eye } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Pencil, Trash2, Users, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 interface Client {
   id: string;
-  domain: string | null;
-  project_name: string | null;
-  client_poc_name: string | null;
-  poc_email: string | null;
-  client_poc_contact_number: string | null;
-  cost_for_year: number | null;
-  payment_term: string | null;
+  domain: string;
+  project_name: string;
+  client_poc_name: string;
+  poc_email: string;
+  client_poc_contact_number: string;
+  cost_for_year: number;
+  payment_term: string;
   ting_poc_primary: string | null;
   ting_poc_secondary: string | null;
   project_slug: string;
   amc_start_date: string | null;
   amc_end_date: string | null;
+  primary_poc_name?: { name: string };
+  secondary_poc_name?: { name: string };
+}
+
+interface Admin {
+  id: string;
+  name: string;
+  email: string;
+  contact_number: string;
 }
 
 interface ClientFormData {
@@ -41,14 +51,7 @@ interface ClientFormData {
   amc_end_date: string;
 }
 
-interface Admin {
-  id: string;
-  name: string;
-  email: string;
-}
-
 export const ClientManagement = () => {
-  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +71,15 @@ export const ClientManagement = () => {
     amc_end_date: '',
   });
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Generate project slug from domain
+  const generateProjectSlug = (domain: string): string => {
+    // Extract second-level domain (e.g., "example" from "https://www.example.com")
+    const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, '');
+    const secondLevelDomain = cleanDomain.split('.')[0];
+    return secondLevelDomain.toLowerCase();
+  };
 
   useEffect(() => {
     fetchClients();
@@ -78,8 +90,12 @@ export const ClientManagement = () => {
     try {
       const { data, error } = await supabase
         .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          primary_poc_name:admins!clients_ting_poc_primary_fkey(name),
+          secondary_poc_name:admins!clients_ting_poc_secondary_fkey(name)
+        `)
+        .order('project_name');
 
       if (error) throw error;
       setClients(data || []);
@@ -99,8 +115,8 @@ export const ClientManagement = () => {
     try {
       const { data, error } = await supabase
         .from('admins')
-        .select('id, name, email')
-        .order('name', { ascending: true });
+        .select('id, name, email, contact_number')
+        .order('name');
 
       if (error) throw error;
       setAdmins(data || []);
@@ -112,11 +128,26 @@ export const ClientManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent same admin being assigned as both primary and secondary
+    if (formData.ting_poc_primary && formData.ting_poc_primary === formData.ting_poc_secondary) {
+      toast({
+        title: "Error",
+        description: "Primary and Secondary POCs cannot be the same person",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const clientData = {
+      ...formData,
+      project_slug: generateProjectSlug(formData.domain),
+    };
+    
     try {
       if (editingClient) {
         const { error } = await supabase
           .from('clients')
-          .update(formData)
+          .update(clientData)
           .eq('id', editingClient.id);
 
         if (error) throw error;
@@ -128,7 +159,7 @@ export const ClientManagement = () => {
       } else {
         const { error } = await supabase
           .from('clients')
-          .insert([{ ...formData, project_slug: '' }]); // Trigger will generate actual slug from domain
+          .insert([clientData]);
 
         if (error) throw error;
         
@@ -154,13 +185,13 @@ export const ClientManagement = () => {
   const handleEdit = (client: Client) => {
     setEditingClient(client);
     setFormData({
-      domain: client.domain || '',
-      project_name: client.project_name || '',
-      client_poc_name: client.client_poc_name || '',
-      poc_email: client.poc_email || '',
-      client_poc_contact_number: client.client_poc_contact_number || '',
-      cost_for_year: client.cost_for_year || 0,
-      payment_term: (client.payment_term as 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly') || 'Monthly',
+      domain: client.domain,
+      project_name: client.project_name,
+      client_poc_name: client.client_poc_name,
+      poc_email: client.poc_email,
+      client_poc_contact_number: client.client_poc_contact_number,
+      cost_for_year: client.cost_for_year,
+      payment_term: client.payment_term as 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly',
       ting_poc_primary: client.ting_poc_primary || '',
       ting_poc_secondary: client.ting_poc_secondary || '',
       amc_start_date: client.amc_start_date || '',
@@ -169,14 +200,14 @@ export const ClientManagement = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (client: Client) => {
     if (!confirm('Are you sure you want to delete this client?')) return;
 
     try {
       const { error } = await supabase
         .from('clients')
         .delete()
-        .eq('id', id);
+        .eq('id', client.id);
 
       if (error) throw error;
 
@@ -213,15 +244,28 @@ export const ClientManagement = () => {
     });
   };
 
-  const getTingPocNames = (primaryId: string | null, secondaryId: string | null) => {
-    const primary = primaryId ? admins.find(admin => admin.id === primaryId)?.name : null;
-    const secondary = secondaryId ? admins.find(admin => admin.id === secondaryId)?.name : null;
-    
-    const pocs = [];
-    if (primary) pocs.push(`Primary: ${primary}`);
-    if (secondary) pocs.push(`Secondary: ${secondary}`);
-    
-    return pocs.length > 0 ? pocs.join(', ') : 'None';
+  const getTingPocNames = (client: Client) => {
+    return (
+      <div className="flex flex-col gap-1">
+        {client.primary_poc_name?.name && (
+          <span className="text-red-600 font-medium">
+            Primary: {client.primary_poc_name.name}
+          </span>
+        )}
+        {client.secondary_poc_name?.name && (
+          <span className="text-blue-600 font-medium">
+            Secondary: {client.secondary_poc_name.name}
+          </span>
+        )}
+        {!client.primary_poc_name?.name && !client.secondary_poc_name?.name && (
+          <span className="text-muted-foreground">Not assigned</span>
+        )}
+      </div>
+    );
+  };
+
+  const handleViewWorkLogs = (client: Client) => {
+    navigate(`/${client.project_slug}/work-log`);
   };
 
   if (loading) {
@@ -229,9 +273,12 @@ export const ClientManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-foreground">Client Management</h1>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          Client Management
+        </CardTitle>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => resetForm()}>
@@ -239,7 +286,7 @@ export const ClientManagement = () => {
               Add Client
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
                 {editingClient ? 'Edit Client' : 'Add New Client'}
@@ -304,12 +351,7 @@ export const ClientManagement = () => {
                 </div>
                 <div>
                   <Label htmlFor="payment_term">Payment Term</Label>
-                  <Select
-                    value={formData.payment_term}
-                    onValueChange={(value: 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly') => 
-                      setFormData({...formData, payment_term: value})
-                    }
-                  >
+                  <Select value={formData.payment_term} onValueChange={(value: 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly') => setFormData({...formData, payment_term: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -323,37 +365,37 @@ export const ClientManagement = () => {
                 </div>
                 <div>
                   <Label htmlFor="ting_poc_primary">Ting POC Primary</Label>
-                  <Select
-                    value={formData.ting_poc_primary}
-                    onValueChange={(value) => setFormData({...formData, ting_poc_primary: value})}
-                  >
+                  <Select value={formData.ting_poc_primary} onValueChange={(value) => setFormData({...formData, ting_poc_primary: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select primary POC" />
                     </SelectTrigger>
                     <SelectContent>
-                      {admins.map((admin) => (
-                        <SelectItem key={admin.id} value={admin.id}>
-                          {admin.name} ({admin.email})
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="">None</SelectItem>
+                      {admins
+                        .filter(admin => admin.id !== formData.ting_poc_secondary)
+                        .map(admin => (
+                          <SelectItem key={admin.id} value={admin.id}>
+                            {admin.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label htmlFor="ting_poc_secondary">Ting POC Secondary</Label>
-                  <Select
-                    value={formData.ting_poc_secondary}
-                    onValueChange={(value) => setFormData({...formData, ting_poc_secondary: value})}
-                  >
+                  <Select value={formData.ting_poc_secondary} onValueChange={(value) => setFormData({...formData, ting_poc_secondary: value})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select secondary POC" />
                     </SelectTrigger>
                     <SelectContent>
-                      {admins.map((admin) => (
-                        <SelectItem key={admin.id} value={admin.id}>
-                          {admin.name} ({admin.email})
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="">None</SelectItem>
+                      {admins
+                        .filter(admin => admin.id !== formData.ting_poc_primary)
+                        .map(admin => (
+                          <SelectItem key={admin.id} value={admin.id}>
+                            {admin.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -366,7 +408,7 @@ export const ClientManagement = () => {
                     onChange={(e) => setFormData({...formData, amc_start_date: e.target.value})}
                   />
                 </div>
-                <div className="col-span-2">
+                <div>
                   <Label htmlFor="amc_end_date">AMC End Date</Label>
                   <Input
                     id="amc_end_date"
@@ -387,77 +429,73 @@ export const ClientManagement = () => {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Project Name</TableHead>
-                <TableHead>Domain</TableHead>
-                <TableHead>Client POC</TableHead>
-                <TableHead>POC Email</TableHead>
-                <TableHead>Contact Number</TableHead>
-                <TableHead>Cost/Year</TableHead>
-                <TableHead>Payment Term</TableHead>
-                <TableHead>Ting POC</TableHead>
-                <TableHead>Actions</TableHead>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Domain</TableHead>
+              <TableHead>Project Name</TableHead>
+              <TableHead>Client POC</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Cost/Year</TableHead>
+              <TableHead>Payment Term</TableHead>
+              <TableHead>Ting POCs</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {clients.map((client) => (
+              <TableRow key={client.id} className="cursor-pointer hover:bg-muted/50">
+                <TableCell className="font-medium">{client.domain}</TableCell>
+                <TableCell>{client.project_name}</TableCell>
+                <TableCell>{client.client_poc_name}</TableCell>
+                <TableCell>{client.poc_email}</TableCell>
+                <TableCell>${client.cost_for_year?.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize">
+                    {client.payment_term?.replace('_', ' ')}
+                  </Badge>
+                </TableCell>
+                <TableCell>{getTingPocNames(client)}</TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewWorkLogs(client)}
+                      title="View Work Logs"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(client)}
+                      title="Edit Client"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(client)}
+                      title="Delete Client"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clients.map((client) => (
-                <TableRow 
-                  key={client.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => navigate(`/${client.project_slug}/work-log`)}
-                >
-                  <TableCell className="font-medium">{client.project_name}</TableCell>
-                  <TableCell>{client.domain}</TableCell>
-                  <TableCell>{client.client_poc_name}</TableCell>
-                  <TableCell>{client.poc_email}</TableCell>
-                  <TableCell>{client.client_poc_contact_number}</TableCell>
-                  <TableCell>${client.cost_for_year?.toLocaleString()}</TableCell>
-                  <TableCell className="capitalize">{client.payment_term?.replace('_', ' ')}</TableCell>
-                  <TableCell className="max-w-32 truncate">
-                    {getTingPocNames(client.ting_poc_primary, client.ting_poc_secondary)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/${client.project_slug}/work-log`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(client)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(client.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {clients.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No clients found. Add your first client to get started.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            ))}
+          </TableBody>
+        </Table>
+        {clients.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            No clients found. Add your first client to get started.
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
