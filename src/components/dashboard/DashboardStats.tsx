@@ -33,26 +33,50 @@ export const DashboardStats = () => {
     try {
       const { data: clients, error } = await supabase
         .from('clients')
-        .select('total_hours, hours_consumed, amc_start_date, amc_end_date');
+        .select('cost_for_year, amc_start_date, amc_end_date, payment_term');
 
       if (error) throw error;
 
       if (clients) {
-        const totalHours = clients.reduce((sum, client) => sum + (client.total_hours || 0), 0);
-        const consumedHours = clients.reduce((sum, client) => sum + (client.hours_consumed || 0), 0);
-        
-        // Calculate cost assuming $50 per hour (this can be made configurable)
-        const costPerHour = 50;
-        const totalCost = consumedHours * costPerHour;
+        // Get work logs to calculate consumed hours
+        const { data: workLogs } = await supabase
+          .from('work_logs')
+          .select('hours_consumed');
+
+        const consumedHours = workLogs?.reduce((sum, log) => sum + (Number(log.hours_consumed) || 0), 0) || 0;
+        const totalCost = clients.reduce((sum, client) => sum + (client.cost_for_year || 0), 0);
 
         // Get earliest start date and latest end date
         const startDates = clients.map(c => c.amc_start_date).filter(Boolean);
         const endDates = clients.map(c => c.amc_end_date).filter(Boolean);
 
+        // Calculate allocated hours based on payment terms
+        const totalAllocatedHours = clients.reduce((sum, client) => {
+          const yearlyHours = 2000;
+          let allocatedHours = yearlyHours;
+          
+          switch (client.payment_term) {
+            case 'Monthly':
+              allocatedHours = yearlyHours / 12;
+              break;
+            case 'Quarterly':
+              allocatedHours = yearlyHours / 4;
+              break;
+            case 'Half-Yearly':
+              allocatedHours = yearlyHours / 2;
+              break;
+            case 'Yearly':
+              allocatedHours = yearlyHours;
+              break;
+          }
+          
+          return sum + allocatedHours;
+        }, 0);
+
         setStats({
           totalCostPaid: totalCost,
           hoursConsumed: consumedHours,
-          hoursRemaining: totalHours - consumedHours,
+          hoursRemaining: totalAllocatedHours - consumedHours,
           totalClients: clients.length,
           amcStartDate: startDates.length > 0 ? Math.min(...startDates.map(d => new Date(d!).getTime())).toString() : null,
           amcEndDate: endDates.length > 0 ? Math.max(...endDates.map(d => new Date(d!).getTime())).toString() : null,

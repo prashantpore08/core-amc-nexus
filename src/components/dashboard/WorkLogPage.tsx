@@ -29,7 +29,7 @@ interface WorkLogFormData {
   hours_consumed: number;
   start_date: string;
   end_date: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'in_progress' | 'completed';
 }
 
 interface ClientStats {
@@ -229,7 +229,7 @@ export const WorkLogPage = () => {
       hours_consumed: Number(workLog.hours_consumed),
       start_date: workLog.start_date || '',
       end_date: workLog.end_date || '',
-      status: workLog.status as 'pending' | 'approved' | 'rejected',
+      status: workLog.status as 'pending' | 'in_progress' | 'completed',
     });
     setDialogOpen(true);
   };
@@ -472,18 +472,18 @@ export const WorkLogPage = () => {
                   <Label htmlFor="status">Status</Label>
                   <Select
                     value={formData.status}
-                    onValueChange={(value: 'pending' | 'approved' | 'rejected') => 
+                    onValueChange={(value: 'pending' | 'in_progress' | 'completed') => 
                       setFormData({...formData, status: value})
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
+          <SelectContent>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
                   </Select>
                 </div>
                 <div className="col-span-2">

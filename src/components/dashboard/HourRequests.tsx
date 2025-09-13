@@ -14,8 +14,8 @@ interface HourRequest {
   status: string;
   created_at: string;
   clients: {
-    client_name: string;
-    total_hours: number;
+    project_name: string;
+    payment_term: string;
   };
 }
 
@@ -34,7 +34,7 @@ export const HourRequests = () => {
         .from('hour_requests')
         .select(`
           *,
-          clients(client_name, total_hours)
+          clients(project_name, payment_term)
         `)
         .order('created_at', { ascending: false });
 
@@ -62,18 +62,12 @@ export const HourRequests = () => {
 
       if (requestError) throw requestError;
 
-      // Update client's total hours
-      const newTotalHours = request.clients.total_hours + request.requested_hours;
-      const { error: clientError } = await supabase
-        .from('clients')
-        .update({ total_hours: newTotalHours })
-        .eq('id', request.client_id);
-
-      if (clientError) throw clientError;
+      // Note: Client hours are now managed through work logs
+      // This approval just changes the request status
 
       toast({
         title: "Success",
-        description: `Approved ${request.requested_hours} hours for ${request.clients.client_name}`,
+        description: `Approved ${request.requested_hours} hours for ${request.clients.project_name}`,
       });
 
       fetchHourRequests();
@@ -98,7 +92,7 @@ export const HourRequests = () => {
 
       toast({
         title: "Success",
-        description: `Rejected hour request for ${request.clients.client_name}`,
+        description: `Rejected hour request for ${request.clients.project_name}`,
       });
 
       fetchHourRequests();
@@ -137,10 +131,9 @@ export const HourRequests = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Client</TableHead>
+              <TableHead>Project</TableHead>
               <TableHead>Requested Hours</TableHead>
-              <TableHead>Current Total</TableHead>
-              <TableHead>New Total</TableHead>
+              <TableHead>Payment Term</TableHead>
               <TableHead>Request Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -150,16 +143,10 @@ export const HourRequests = () => {
             {hourRequests.map((request) => (
               <TableRow key={request.id}>
                 <TableCell className="font-medium">
-                  {request.clients.client_name}
+                  {request.clients.project_name}
                 </TableCell>
                 <TableCell>{request.requested_hours}h</TableCell>
-                <TableCell>{request.clients.total_hours}h</TableCell>
-                <TableCell>
-                  {request.status === 'approved' 
-                    ? `${request.clients.total_hours}h` 
-                    : `${request.clients.total_hours + request.requested_hours}h`
-                  }
-                </TableCell>
+                <TableCell>{request.clients.payment_term}</TableCell>
                 <TableCell>
                   {new Date(request.created_at).toLocaleDateString()}
                 </TableCell>

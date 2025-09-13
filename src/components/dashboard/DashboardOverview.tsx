@@ -60,16 +60,16 @@ export const DashboardOverview = () => {
         let allocatedHours = yearlyHours;
         
         switch (client.payment_term) {
-          case 'monthly':
+          case 'Monthly':
             allocatedHours = yearlyHours / 12;
             break;
-          case 'quarterly':
+          case 'Quarterly':
             allocatedHours = yearlyHours / 4;
             break;
-          case 'half_yearly':
+          case 'Half-Yearly':
             allocatedHours = yearlyHours / 2;
             break;
-          case 'yearly':
+          case 'Yearly':
             allocatedHours = yearlyHours;
             break;
         }
@@ -121,16 +121,16 @@ export const DashboardOverview = () => {
         let allocatedHours = yearlyHours;
         
         switch (client.payment_term) {
-          case 'monthly':
+          case 'Monthly':
             allocatedHours = yearlyHours / 12;
             break;
-          case 'quarterly':
+          case 'Quarterly':
             allocatedHours = yearlyHours / 4;
             break;
-          case 'half_yearly':
+          case 'Half-Yearly':
             allocatedHours = yearlyHours / 2;
             break;
-          case 'yearly':
+          case 'Yearly':
             allocatedHours = yearlyHours;
             break;
         }
@@ -147,16 +147,16 @@ export const DashboardOverview = () => {
         let allocatedHours = yearlyHours;
         
         switch (client.payment_term) {
-          case 'monthly':
+          case 'Monthly':
             allocatedHours = yearlyHours / 12;
             break;
-          case 'quarterly':
+          case 'Quarterly':
             allocatedHours = yearlyHours / 4;
             break;
-          case 'half_yearly':
+          case 'Half-Yearly':
             allocatedHours = yearlyHours / 2;
             break;
-          case 'yearly':
+          case 'Yearly':
             allocatedHours = yearlyHours;
             break;
         }

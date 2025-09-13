@@ -16,25 +16,25 @@ interface WorkLog {
   id: string;
   client_id: string;
   date: string;
-  description: string;
+  work_description: string;
   hours_consumed: number;
   start_date: string | null;
   end_date: string | null;
   status: string;
   clients: {
-    client_name: string;
+    project_name: string;
   };
 }
 
 interface Client {
   id: string;
-  client_name: string;
+  project_name: string;
 }
 
 interface WorkLogFormData {
   client_id: string;
   date: string;
-  description: string;
+  work_description: string;
   hours_consumed: number;
   start_date: string;
   end_date: string;
@@ -52,7 +52,7 @@ export const WorkLogManagement = () => {
   const [formData, setFormData] = useState<WorkLogFormData>({
     client_id: '',
     date: '',
-    description: '',
+    work_description: '',
     hours_consumed: 0,
     start_date: '',
     end_date: '',
@@ -71,7 +71,7 @@ export const WorkLogManagement = () => {
         .from('work_logs')
         .select(`
           *,
-          clients(client_name)
+          clients(project_name)
         `)
         .order('date', { ascending: false });
 
@@ -93,8 +93,8 @@ export const WorkLogManagement = () => {
     try {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, client_name')
-        .order('client_name');
+        .select('id, project_name')
+        .order('project_name');
 
       if (error) throw error;
       setClients(data || []);
@@ -115,8 +115,7 @@ export const WorkLogManagement = () => {
 
         if (error) throw error;
         
-        // Update client's hours_consumed
-        await updateClientHours(formData.client_id);
+        // Note: Client hours are now calculated from work logs
         
         toast({
           title: "Success",
@@ -129,8 +128,7 @@ export const WorkLogManagement = () => {
 
         if (error) throw error;
         
-        // Update client's hours_consumed
-        await updateClientHours(formData.client_id);
+        // Note: Client hours are now calculated from work logs
         
         toast({
           title: "Success",
@@ -151,36 +149,14 @@ export const WorkLogManagement = () => {
     }
   };
 
-  const updateClientHours = async (clientId: string) => {
-    try {
-      // Calculate total hours for this client
-      const { data: logs, error: logsError } = await supabase
-        .from('work_logs')
-        .select('hours_consumed')
-        .eq('client_id', clientId);
-
-      if (logsError) throw logsError;
-
-      const totalHours = logs?.reduce((sum, log) => sum + Number(log.hours_consumed), 0) || 0;
-
-      // Update client's hours_consumed
-      const { error: updateError } = await supabase
-        .from('clients')
-        .update({ hours_consumed: totalHours })
-        .eq('id', clientId);
-
-      if (updateError) throw updateError;
-    } catch (error) {
-      console.error('Error updating client hours:', error);
-    }
-  };
+  // Note: This function is no longer needed as hours are calculated dynamically
 
   const handleEdit = (workLog: WorkLog) => {
     setEditingWorkLog(workLog);
     setFormData({
       client_id: workLog.client_id,
       date: workLog.date,
-      description: workLog.description,
+      work_description: workLog.work_description,
       hours_consumed: workLog.hours_consumed,
       start_date: workLog.start_date || '',
       end_date: workLog.end_date || '',
@@ -200,8 +176,7 @@ export const WorkLogManagement = () => {
 
       if (error) throw error;
 
-      // Update client's hours_consumed
-      await updateClientHours(workLog.client_id);
+      // Note: Client hours are calculated dynamically
 
       toast({
         title: "Success",
@@ -224,7 +199,7 @@ export const WorkLogManagement = () => {
     setFormData({
       client_id: '',
       date: '',
-      description: '',
+      work_description: '',
       hours_consumed: 0,
       start_date: '',
       end_date: '',
@@ -238,8 +213,8 @@ export const WorkLogManagement = () => {
       headers.join(','),
       ...filteredWorkLogs.map(log => [
         log.date,
-        log.clients.client_name,
-        `"${log.description}"`,
+        log.clients.project_name,
+        `"${log.work_description}"`,
         log.hours_consumed,
         log.start_date || '',
         log.end_date || '',
@@ -257,8 +232,8 @@ export const WorkLogManagement = () => {
   };
 
   const filteredWorkLogs = workLogs.filter(log => {
-    const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.clients.client_name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = log.work_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         log.clients.project_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || log.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -312,7 +287,7 @@ export const WorkLogManagement = () => {
                       <SelectContent>
                         {clients.map(client => (
                           <SelectItem key={client.id} value={client.id}>
-                            {client.client_name}
+                            {client.project_name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -372,11 +347,11 @@ export const WorkLogManagement = () => {
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="description">Work Description *</Label>
+                  <Label htmlFor="work_description">Work Description *</Label>
                   <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    id="work_description"
+                    value={formData.work_description}
+                    onChange={(e) => setFormData({...formData, work_description: e.target.value})}
                     required
                     rows={3}
                   />
@@ -431,8 +406,8 @@ export const WorkLogManagement = () => {
             {filteredWorkLogs.map((workLog) => (
               <TableRow key={workLog.id}>
                 <TableCell>{new Date(workLog.date).toLocaleDateString()}</TableCell>
-                <TableCell className="font-medium">{workLog.clients.client_name}</TableCell>
-                <TableCell className="max-w-xs truncate">{workLog.description}</TableCell>
+                <TableCell className="font-medium">{workLog.clients.project_name}</TableCell>
+                <TableCell className="max-w-xs truncate">{workLog.work_description}</TableCell>
                 <TableCell>{workLog.hours_consumed}h</TableCell>
                 <TableCell>
                   {workLog.start_date && workLog.end_date ? 
