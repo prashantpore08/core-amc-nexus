@@ -141,6 +141,8 @@ export const ClientManagement = () => {
     const clientData = {
       ...formData,
       project_slug: generateProjectSlug(formData.domain),
+      ting_poc_primary: formData.ting_poc_primary === "none" ? null : formData.ting_poc_primary,
+      ting_poc_secondary: formData.ting_poc_secondary === "none" ? null : formData.ting_poc_secondary,
     };
     
     try {
@@ -370,9 +372,9 @@ export const ClientManagement = () => {
                       <SelectValue placeholder="Select primary POC" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {admins
-                        .filter(admin => admin.id !== formData.ting_poc_secondary)
+                        .filter(admin => admin.id !== formData.ting_poc_secondary && formData.ting_poc_secondary !== "none")
                         .map(admin => (
                           <SelectItem key={admin.id} value={admin.id}>
                             {admin.name}
@@ -388,9 +390,9 @@ export const ClientManagement = () => {
                       <SelectValue placeholder="Select secondary POC" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {admins
-                        .filter(admin => admin.id !== formData.ting_poc_primary)
+                        .filter(admin => admin.id !== formData.ting_poc_primary && formData.ting_poc_primary !== "none")
                         .map(admin => (
                           <SelectItem key={admin.id} value={admin.id}>
                             {admin.name}
