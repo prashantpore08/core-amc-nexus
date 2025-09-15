@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ArrowLeft, Plus, Pencil, Trash2, DollarSign, Clock, Calendar, FileDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatRupees, calculateHoursAllocation } from '@/lib/utils';
 
 interface WorkLog {
   id: string;
@@ -142,22 +143,24 @@ export const WorkLogPage = () => {
 
       const hoursConsumed = workLogsData?.reduce((sum, log) => sum + (Number(log.hours_consumed) || 0), 0) || 0;
       
-      // Calculate allocated hours based on payment term
-      const yearlyHours = 2000;
-      let allocatedHours = yearlyHours;
+      // Calculate allocated hours based on payment term and hours_assigned_year
+      const hoursAssignedYear = (client as any).hours_assigned_year || 2000; // Default to 2000 if not set
+      const hoursAllocation = calculateHoursAllocation(hoursAssignedYear, client.payment_term);
+      
+      let allocatedHours = hoursAssignedYear;
       
       switch (client.payment_term) {
-        case 'monthly':
-          allocatedHours = yearlyHours / 12;
+        case 'Monthly':
+          allocatedHours = hoursAllocation.breakdown.perMonth;
           break;
-        case 'quarterly':
-          allocatedHours = yearlyHours / 4;
+        case 'Quarterly':
+          allocatedHours = hoursAllocation.breakdown.perQuarter;
           break;
-        case 'half_yearly':
-          allocatedHours = yearlyHours / 2;
+        case 'Half-Yearly':
+          allocatedHours = hoursAllocation.breakdown.perHalfYear;
           break;
-        case 'yearly':
-          allocatedHours = yearlyHours;
+        case 'Yearly':
+          allocatedHours = hoursAllocation.breakdown.perYear;
           break;
       }
 
@@ -376,7 +379,7 @@ export const WorkLogPage = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${clientStats.paymentDone.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{formatRupees(clientStats.paymentDone)}</div>
               <p className="text-xs text-muted-foreground">
                 {client?.cost_for_year ? `${((clientStats.paymentDone / client.cost_for_year) * 100).toFixed(1)}% of total` : 'No cost set'}
               </p>
@@ -396,7 +399,7 @@ export const WorkLogPage = () => {
                 }
               </div>
               <p className="text-xs text-muted-foreground">
-                Remaining: ${clientStats.remainingPayment.toLocaleString()}
+                Remaining: {formatRupees(clientStats.remainingPayment)}
               </p>
             </CardContent>
           </Card>

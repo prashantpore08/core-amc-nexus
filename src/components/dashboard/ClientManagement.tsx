@@ -11,6 +11,7 @@ import { Plus, Pencil, Trash2, Users, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { formatRupees } from '@/lib/utils';
 
 interface Client {
   id: string;
@@ -44,6 +45,7 @@ interface ClientFormData {
   poc_email: string;
   client_poc_contact_number: string;
   cost_for_year: number;
+  hours_assigned_year: number;
   payment_term: 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly';
   ting_poc_primary: string;
   ting_poc_secondary: string;
@@ -64,6 +66,7 @@ export const ClientManagement = () => {
     poc_email: '',
     client_poc_contact_number: '',
     cost_for_year: 0,
+    hours_assigned_year: 0,
     payment_term: 'Monthly',
     ting_poc_primary: '',
     ting_poc_secondary: '',
@@ -193,6 +196,7 @@ export const ClientManagement = () => {
       poc_email: client.poc_email,
       client_poc_contact_number: client.client_poc_contact_number,
       cost_for_year: client.cost_for_year,
+      hours_assigned_year: (client as any).hours_assigned_year || 0,
       payment_term: client.payment_term as 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly',
       ting_poc_primary: client.ting_poc_primary || '',
       ting_poc_secondary: client.ting_poc_secondary || '',
@@ -238,6 +242,7 @@ export const ClientManagement = () => {
       poc_email: '',
       client_poc_contact_number: '',
       cost_for_year: 0,
+      hours_assigned_year: 0,
       payment_term: 'Monthly',
       ting_poc_primary: '',
       ting_poc_secondary: '',
@@ -251,12 +256,12 @@ export const ClientManagement = () => {
       <div className="flex flex-col gap-1">
         {client.primary_poc_name?.name && (
           <span className="text-red-600 font-medium">
-            Primary: {client.primary_poc_name.name}
+            {client.primary_poc_name.name}
           </span>
         )}
         {client.secondary_poc_name?.name && (
           <span className="text-blue-600 font-medium">
-            Secondary: {client.secondary_poc_name.name}
+            {client.secondary_poc_name.name}
           </span>
         )}
         {!client.primary_poc_name?.name && !client.secondary_poc_name?.name && (
@@ -343,12 +348,21 @@ export const ClientManagement = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="cost_for_year">Cost for Year</Label>
+                  <Label htmlFor="cost_for_year">Cost for Year (₹)</Label>
                   <Input
                     id="cost_for_year"
                     type="number"
                     value={formData.cost_for_year}
                     onChange={(e) => setFormData({...formData, cost_for_year: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="hours_assigned_year">Hours Assigned (per Year)</Label>
+                  <Input
+                    id="hours_assigned_year"
+                    type="number"
+                    value={formData.hours_assigned_year}
+                    onChange={(e) => setFormData({...formData, hours_assigned_year: parseFloat(e.target.value) || 0})}
                   />
                 </div>
                 <div>
@@ -441,6 +455,7 @@ export const ClientManagement = () => {
               <TableHead>Client POC</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Cost/Year</TableHead>
+              <TableHead>Hours/Year</TableHead>
               <TableHead>Payment Term</TableHead>
               <TableHead>Ting POCs</TableHead>
               <TableHead>Actions</TableHead>
@@ -453,7 +468,8 @@ export const ClientManagement = () => {
                 <TableCell>{client.project_name}</TableCell>
                 <TableCell>{client.client_poc_name}</TableCell>
                 <TableCell>{client.poc_email}</TableCell>
-                <TableCell>${client.cost_for_year?.toLocaleString()}</TableCell>
+                <TableCell>{formatRupees(client.cost_for_year || 0)}</TableCell>
+                <TableCell>{(client as any).hours_assigned_year || 0}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="capitalize">
                     {client.payment_term?.replace('_', ' ')}

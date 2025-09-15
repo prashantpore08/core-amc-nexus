@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar, DollarSign, Clock, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatRupees } from '@/lib/utils';
 
 interface Client {
   id: string;
@@ -167,7 +168,7 @@ export const DashboardOverview = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.totalCostPaid.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatRupees(stats.totalCostPaid)}</div>
             <p className="text-xs text-muted-foreground">
               All client payments in {new Date().getFullYear()}
             </p>
@@ -180,7 +181,7 @@ export const DashboardOverview = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.totalPaymentThisMonth.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatRupees(stats.totalPaymentThisMonth)}</div>
             <p className="text-xs text-muted-foreground">
               Payments received in {new Date().toLocaleDateString('en-US', { month: 'long' })}
             </p>
@@ -227,12 +228,12 @@ export const DashboardOverview = () => {
                         <div className="flex flex-col gap-1">
                           {client.ting_poc_primary && (
                             <span className="text-red-600 font-medium">
-                              Primary: {client.ting_poc_primary.name}
+                              {client.ting_poc_primary.name}
                             </span>
                           )}
                           {client.ting_poc_secondary && (
                             <span className="text-blue-600 font-medium">
-                              Secondary: {client.ting_poc_secondary.name}
+                              {client.ting_poc_secondary.name}
                             </span>
                           )}
                         </div>

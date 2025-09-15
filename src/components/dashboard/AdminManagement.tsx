@@ -16,7 +16,7 @@ interface Admin {
   email: string;
   contact_number: string | null;
   client_count?: number;
-  clients?: Array<{ client_name: string; }>;
+  clients?: Array<{ project_name: string; role: 'Primary' | 'Secondary' }>;
 }
 
 interface AdminFormData {
@@ -43,25 +43,39 @@ export const AdminManagement = () => {
 
   const fetchAdmins = async () => {
     try {
-      // Fetch admins with their assigned clients count
+      // Fetch admins with their assigned clients as primary or secondary POC
       const { data: adminsData, error: adminsError } = await supabase
         .from('admins')
-        .select(`
-          *,
-          client_admins(
-            clients(client_name)
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (adminsError) throw adminsError;
 
-      // Process the data to include client information
-      const processedAdmins = (adminsData || []).map(admin => ({
-        ...admin,
-        client_count: admin.client_admins?.length || 0,
-        clients: admin.client_admins?.map((ca: any) => ca.clients) || []
-      }));
+      // For each admin, fetch their assigned clients
+      const processedAdmins = await Promise.all(
+        (adminsData || []).map(async (admin) => {
+          const { data: primaryClients } = await supabase
+            .from('clients')
+            .select('project_name')
+            .eq('ting_poc_primary', admin.id);
+
+          const { data: secondaryClients } = await supabase
+            .from('clients')
+            .select('project_name')
+            .eq('ting_poc_secondary', admin.id);
+
+          const allClients = [
+            ...(primaryClients || []).map(c => ({ project_name: c.project_name, role: 'Primary' as const })),
+            ...(secondaryClients || []).map(c => ({ project_name: c.project_name, role: 'Secondary' as const }))
+          ];
+
+          return {
+            ...admin,
+            client_count: allClients.length,
+            clients: allClients
+          };
+        })
+      );
 
       setAdmins(processedAdmins);
     } catch (error) {
@@ -251,8 +265,12 @@ export const AdminManagement = () => {
                       {admin.client_count} client{admin.client_count !== 1 ? 's' : ''}
                     </Badge>
                     {admin.clients?.slice(0, 2).map((client, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {client.client_name}
+                      <Badge 
+                        key={idx} 
+                        variant="outline" 
+                        className={`text-xs ${client.role === 'Primary' ? 'text-red-600 border-red-200' : 'text-blue-600 border-blue-200'}`}
+                      >
+                        {client.project_name} ({client.role})
                       </Badge>
                     ))}
                     {admin.client_count && admin.client_count > 2 && (

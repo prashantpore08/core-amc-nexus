@@ -86,6 +86,7 @@ export type Database = {
           created_at: string
           domain: string | null
           email: string | null
+          hours_assigned_year: number | null
           id: string
           logo_url: string | null
           payment_term: Database["public"]["Enums"]["payment_term"] | null
@@ -108,6 +109,7 @@ export type Database = {
           created_at?: string
           domain?: string | null
           email?: string | null
+          hours_assigned_year?: number | null
           id?: string
           logo_url?: string | null
           payment_term?: Database["public"]["Enums"]["payment_term"] | null
@@ -130,6 +132,7 @@ export type Database = {
           created_at?: string
           domain?: string | null
           email?: string | null
+          hours_assigned_year?: number | null
           id?: string
           logo_url?: string | null
           payment_term?: Database["public"]["Enums"]["payment_term"] | null
