@@ -7,11 +7,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Users, Eye } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Pencil, Trash2, Users, Eye, FileText, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { formatRupees } from '@/lib/utils';
+import { InvoiceManagement } from './InvoiceManagement';
+import { ContractManagement } from './ContractManagement';
+import { DocumentManagement } from './DocumentManagement';
 
 interface Client {
   id: string;
@@ -59,6 +63,7 @@ export const ClientManagement = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState<ClientFormData>({
     domain: '',
     project_name: '',
@@ -275,8 +280,81 @@ export const ClientManagement = () => {
     navigate(`/${client.project_slug}/work-log`);
   };
 
+  const handleViewDetails = (client: Client) => {
+    setViewingClient(client);
+  };
+
+  const handleBackToList = () => {
+    setViewingClient(null);
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8">Loading...</div>;
+  }
+
+  // If viewing a specific client's details
+  if (viewingClient) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button variant="outline" onClick={handleBackToList}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Client List
+                </Button>
+                <div>
+                  <CardTitle>{viewingClient.project_name}</CardTitle>
+                  <p className="text-muted-foreground">{viewingClient.domain}</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="capitalize">
+                {viewingClient.payment_term?.replace('_', ' ')}
+              </Badge>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Tabs defaultValue="invoices" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="invoices">
+              <FileText className="h-4 w-4 mr-2" />
+              Invoices
+            </TabsTrigger>
+            <TabsTrigger value="contracts">
+              <FileText className="h-4 w-4 mr-2" />
+              Contracts
+            </TabsTrigger>
+            <TabsTrigger value="documents">
+              <FileText className="h-4 w-4 mr-2" />
+              Documents
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="invoices">
+            <InvoiceManagement 
+              clientId={viewingClient.id} 
+              clientName={viewingClient.project_name || 'Unknown Client'} 
+            />
+          </TabsContent>
+
+          <TabsContent value="contracts">
+            <ContractManagement 
+              clientId={viewingClient.id} 
+              clientName={viewingClient.project_name || 'Unknown Client'} 
+            />
+          </TabsContent>
+
+          <TabsContent value="documents">
+            <DocumentManagement 
+              clientId={viewingClient.id} 
+              clientName={viewingClient.project_name || 'Unknown Client'} 
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
   }
 
   return (
@@ -478,6 +556,14 @@ export const ClientManagement = () => {
                 <TableCell>{getTingPocNames(client)}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewDetails(client)}
+                      title="View Client Details"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

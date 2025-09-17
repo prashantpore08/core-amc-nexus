@@ -74,6 +74,47 @@ export type Database = {
           },
         ]
       }
+      client_documents: {
+        Row: {
+          client_id: string
+          created_at: string
+          doc_title: string
+          doc_type: string
+          file_path: string
+          id: string
+          updated_at: string
+          upload_date: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          doc_title: string
+          doc_type: string
+          file_path: string
+          id?: string
+          updated_at?: string
+          upload_date?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          doc_title?: string
+          doc_type?: string
+          file_path?: string
+          id?: string
+          updated_at?: string
+          upload_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           amc_end_date: string | null
@@ -161,6 +202,44 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          client_id: string
+          contract_date: string
+          contract_title: string
+          created_at: string
+          file_path: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contract_date: string
+          contract_title: string
+          created_at?: string
+          file_path: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contract_date?: string
+          contract_title?: string
+          created_at?: string
+          file_path?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hour_requests: {
         Row: {
           client_id: string
@@ -189,6 +268,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "hour_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string
+          description: string | null
+          file_path: string
+          id: string
+          invoice_date: string
+          invoice_number: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string
+          description?: string | null
+          file_path: string
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          file_path?: string
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
