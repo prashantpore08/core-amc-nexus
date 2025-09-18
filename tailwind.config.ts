@@ -47,6 +47,22 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        qodeUltra: {
+          bg: "hsl(var(--qode-ultra-bg))",
+          text: "hsl(var(--qode-ultra-text))",
+        },
+        qodePro: {
+          bg: "hsl(var(--qode-pro-bg))",
+          text: "hsl(var(--qode-pro-text))",
+        },
+        qodeMax: {
+          bg: "hsl(var(--qode-max-bg))",
+          text: "hsl(var(--qode-max-text))",
+        },
+        qodeMini: {
+          bg: "hsl(var(--qode-mini-bg))",
+          text: "hsl(var(--qode-mini-text))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

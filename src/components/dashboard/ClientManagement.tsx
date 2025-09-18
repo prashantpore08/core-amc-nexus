@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, Users, Eye, FileText, ArrowLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Eye, FileText, ArrowLeft, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -33,6 +33,8 @@ interface Client {
   amc_end_date: string | null;
   primary_poc_name?: { name: string };
   secondary_poc_name?: { name: string };
+  logo_url?: string;
+  client_name?: string;
 }
 
 interface Admin {
@@ -274,6 +276,14 @@ export const ClientManagement = () => {
         )}
       </div>
     );
+  };
+
+  const getClientGroup = (cost: number) => {
+    if (cost >= 1000000) return { name: 'Qode Ultra', bgClass: 'bg-qodeUltra-bg', textClass: 'text-qodeUltra-text' };
+    if (cost >= 600000) return { name: 'Qode Pro', bgClass: 'bg-qodePro-bg', textClass: 'text-qodePro-text' };
+    if (cost >= 300000) return { name: 'Qode Max', bgClass: 'bg-qodeMax-bg', textClass: 'text-qodeMax-text' };
+    if (cost >= 10000) return { name: 'Qode Mini', bgClass: 'bg-qodeMini-bg', textClass: 'text-qodeMini-text' };
+    return { name: 'Qode Mini', bgClass: 'bg-qodeMini-bg', textClass: 'text-qodeMini-text' };
   };
 
   const handleViewWorkLogs = (client: Client) => {
@@ -525,78 +535,113 @@ export const ClientManagement = () => {
         </Dialog>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Domain</TableHead>
-              <TableHead>Project Name</TableHead>
-              <TableHead>Client POC</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Cost/Year</TableHead>
-              <TableHead>Hours/Year</TableHead>
-              <TableHead>Payment Term</TableHead>
-              <TableHead>Ting POCs</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {clients.map((client) => (
-              <TableRow key={client.id} className="cursor-pointer hover:bg-muted/50">
-                <TableCell className="font-medium">{client.domain}</TableCell>
-                <TableCell>{client.project_name}</TableCell>
-                <TableCell>{client.client_poc_name}</TableCell>
-                <TableCell>{client.poc_email}</TableCell>
-                <TableCell>{formatRupees(client.cost_for_year || 0)}</TableCell>
-                <TableCell>{(client as any).hours_assigned_year || 0}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="capitalize">
-                    {client.payment_term?.replace('_', ' ')}
-                  </Badge>
-                </TableCell>
-                <TableCell>{getTingPocNames(client)}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDetails(client)}
-                      title="View Client Details"
-                    >
-                      <FileText className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewWorkLogs(client)}
-                      title="View Work Logs"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(client)}
-                      title="Edit Client"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(client)}
-                      title="Delete Client"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {clients.length === 0 && (
+        {clients.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             No clients found. Add your first client to get started.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {clients.map((client) => {
+              const group = getClientGroup(client.cost_for_year || 0);
+              return (
+                <Card key={client.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="text-center pb-4">
+                    {/* Logo */}
+                    <div className="flex justify-center mb-2">
+                      {client.logo_url ? (
+                        <img 
+                          src={client.logo_url} 
+                          alt={`${client.client_name || client.project_name} logo`}
+                          className="w-16 h-16 object-contain rounded-lg"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                          <Building2 className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Client Name */}
+                    <CardTitle className="text-lg">
+                      {client.client_name || client.project_name}
+                    </CardTitle>
+                    
+                    {/* Group Badge */}
+                    <Badge 
+                      className={`${group.bgClass} ${group.textClass} border-0 font-medium`}
+                      variant="outline"
+                    >
+                      {group.name}
+                    </Badge>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-3">
+                    {/* Client POC Names with color coding */}
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground mb-1">Ting POCs</div>
+                      {getTingPocNames(client)}
+                    </div>
+                    
+                    {/* Client POC Details */}
+                    <div>
+                      <div className="text-sm font-medium">{client.client_poc_name}</div>
+                      <div className="text-sm text-muted-foreground">{client.poc_email}</div>
+                      <div className="text-sm text-muted-foreground">{client.client_poc_contact_number}</div>
+                    </div>
+                    
+                    {/* AMC Cost */}
+                    <div className="text-lg font-semibold text-primary">
+                      {formatRupees(client.cost_for_year || 0)}
+                    </div>
+                    
+                    {/* Start & End Dates */}
+                    <div className="text-sm text-muted-foreground">
+                      {client.amc_start_date && client.amc_end_date && (
+                        <div>
+                          {new Date(client.amc_start_date).toLocaleDateString()} - {new Date(client.amc_end_date).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(client)}
+                        title="Edit Client"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(client)}
+                        title="Delete Client"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewWorkLogs(client)}
+                        title="View Work Logs"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewDetails(client)}
+                        title="View Documents"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </CardContent>
